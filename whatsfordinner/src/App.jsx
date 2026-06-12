@@ -381,6 +381,18 @@ body{font-family:'DM Sans',sans-serif;background:#F7F3EE;color:#1E1E1E;}
 .family-badge{font-size:10px;color:#E07A5F;background:#FDF0EC;border-radius:5px;padding:2px 6px;font-weight:700;}
 .textarea{border:1.5px solid #E2D9CE;border-radius:10px;padding:8px 11px;font-family:'DM Sans',sans-serif;font-size:13px;background:#FAFAF8;outline:none;width:100%;resize:vertical;min-height:70px;transition:border-color .15s;}
 .textarea:focus{border-color:#E07A5F;background:#fff;}
+.invite-box{background:#F7F3EE;border:1.5px dashed #D4C5BB;border-radius:12px;padding:14px 15px;margin-bottom:14px;}
+.member-full{background:#FDF0EC;border:1.5px solid #F0C5B5;border-radius:12px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;}
+.status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.status-dot.active{background:#2C7A4B;}
+.status-dot.pending{background:#F4A827;}
+.pending-card{background:#FFF8EC;border:1.5px solid #F4D06F;border-radius:10px;padding:10px 12px;margin-bottom:7px;display:flex;align-items:center;gap:9px;}
+.role-sel{border:1.5px solid #E2D9CE;border-radius:7px;padding:4px 7px;font-family:"DM Sans",sans-serif;font-size:11px;background:#fff;outline:none;color:#1E1E1E;}
+.confirm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:400;display:flex;align-items:center;justify-content:center;padding:20px;}
+.confirm-box{background:#fff;border-radius:16px;padding:22px 20px;width:100%;max-width:320px;box-shadow:0 8px 40px rgba(0,0,0,.2);}
+.avatar-grid{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
+.avatar-opt{width:36px;height:36px;border-radius:50%;border:2px solid #E2D9CE;display:flex;align-items:center;justify-content:center;font-size:20px;cursor:pointer;transition:border-color .12s;}
+.avatar-opt.picked{border-color:#E07A5F;background:#FDF0EC;}
 `;
 
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
@@ -412,6 +424,23 @@ export default function DinnerFam() {
   const [viewFamilyRecipe, setViewFamilyRecipe] = useState(null);
   const [editingFamilyRecipe, setEditingFamilyRecipe] = useState(null);
   const [isNewFamilyRecipe, setIsNewFamilyRecipe] = useState(false);
+
+  // Member management
+  const MAX_MEMBERS = 8;
+  const [familyRoster, setFamilyRoster] = useState([
+    { id:"u1", name:"Sarah M.", role:"admin", avatar:"👩", email:"sarah@family.com", status:"active" },
+    { id:"u2", name:"Tom M.",   role:"member", avatar:"👨", email:"tom@family.com", status:"active" },
+    { id:"u3", name:"Emma M.",  role:"member", avatar:"👧", email:"emma@family.com", status:"active" },
+    { id:"u4", name:"Jake M.",  role:"member", avatar:"👦", email:"jake@family.com", status:"active" },
+  ]);
+  const [showMemberModal, setShowMemberModal] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteName, setInviteName] = useState("");
+  const [inviteRole, setInviteRole] = useState("member");
+  const [pendingInvites, setPendingInvites] = useState([
+    { id:"inv1", email:"grandma@family.com", name:"Grandma Sue", role:"member", sentAt:"2 days ago" },
+  ]);
+  const [removingMember, setRemovingMember] = useState(null);
 
   // Community data
   const [communityRecipes, setCommunityRecipes] = useState(SEED_COMMUNITY);
@@ -534,6 +563,82 @@ export default function DinnerFam() {
   const checkedCount=Object.values(checkedItems).filter(Boolean).length;
   const recipeCount=menu.filter(s=>!s.locked&&s.meal&&familyRecipes.find(r=>r.name===s.meal)).length;
   const submittedCount=Object.values(suggestions).filter(m=>m.some(s=>s.trim())).length;
+
+  // Member management helpers
+  const AVATARS = ["👩","👨","👧","👦","👴","👵","🧑","👩‍🦰","👨‍🦱","👩‍🦱","👨‍🍳","🧒"];
+
+  // Invite link generator
+  function generateToken(familyName, inviteName) {
+    const famSlug = familyName.replace(/[^a-zA-Z0-9]/g,'').toUpperCase().slice(0,8);
+    const rand = Math.random().toString(36).substring(2,8).toUpperCase();
+    return `${famSlug}-${rand}`;
+  }
+
+  function buildInviteLink(token) {
+    // In production this would be your real domain
+    return `https://dinnervote.com/join/${token}`;
+  }
+
+  function sendInvite() {
+    if (!inviteEmail.trim() || !inviteName.trim()) { toast("Please enter a name and email."); return; }
+    if (familyRoster.length + pendingInvites.length >= MAX_MEMBERS) { toast("Family is at the 8-member limit!"); return; }
+    const exists = [...familyRoster, ...pendingInvites].find(m => m.email.toLowerCase() === inviteEmail.toLowerCase().trim());
+    if (exists) { toast("That email is already in your family!"); return; }
+    const token = generateToken(user.familyName, inviteName.trim());
+    const link = buildInviteLink(token);
+    const newInvite = {
+      id:"inv"+Date.now(), email:inviteEmail.trim(), name:inviteName.trim(),
+      role:inviteRole, sentAt:"just now", token, link, family:user.familyName, familyId:user.family
+    };
+    setPendingInvites(p => [...p, newInvite]);
+    setInviteEmail(""); setInviteName(""); setInviteRole("member");
+    // Auto-copy the link
+    if(navigator.clipboard) navigator.clipboard.writeText(link).catch(()=>{});
+    toast(`Invite created! Link copied to clipboard.`);
+  }
+
+  function copyInviteLink(link) {
+    if(navigator.clipboard) {
+      navigator.clipboard.writeText(link)
+        .then(()=>toast("Link copied!"))
+        .catch(()=>toast("Copy failed — link shown below"));
+    } else {
+      toast("Copy the link manually from below");
+    }
+  }
+
+  function cancelInvite(id) {
+    setPendingInvites(p => p.filter(i => i.id !== id));
+    toast("Invite cancelled.");
+  }
+
+  function removeMember(id) {
+    if (id === user.id) { toast("You can't remove yourself!"); return; }
+    setFamilyRoster(p => p.filter(m => m.id !== id));
+    setSuggestions(p => { const n = {...p}; delete n[id]; return n; });
+    setRemovingMember(null);
+    toast("Member removed.");
+  }
+
+  function changeRole(id, role) {
+    setFamilyRoster(p => p.map(m => m.id === id ? {...m, role} : m));
+    toast("Role updated.");
+  }
+
+  function acceptInvite(inv) {
+    // Simulates accepting — in real app this happens via email link
+    const newMember = {
+      id: "u"+Date.now(), name: inv.name, role: inv.role,
+      avatar: AVATARS[Math.floor(Math.random()*AVATARS.length)],
+      email: inv.email, status: "active"
+    };
+    setFamilyRoster(p => [...p, newMember]);
+    setPendingInvites(p => p.filter(i => i.id !== inv.id));
+    toast(`${inv.name} joined the family!`);
+  }
+
+  const totalSlots = familyRoster.length + pendingInvites.length;
+  const slotsLeft = MAX_MEMBERS - totalSlots;
 
   return (
     <>
@@ -795,28 +900,205 @@ export default function DinnerFam() {
 
             {/* FAMILY TAB */}
             {familyTab==="family"&&(
-              <div className="card">
-                <div className="ch"><span className="ct">👨‍👩‍👧‍👦 {user.familyName}</span><span className="badge">{familyMembers.length}</span></div>
-                <div className="cb">
-                  <div style={{fontSize:12,color:"#8A7F74",marginBottom:7}}>{submittedCount} of {familyMembers.length} have submitted picks · Deadline: <span style={{color:"#E07A5F",fontWeight:600}}>{votingDeadline.day} {(() => { const hr = Number(votingDeadline.time.split(":")[0]); return hr === 12 ? "12:00 PM" : hr === 0 ? "12:00 AM" : hr > 12 ? `${hr-12}:00 PM` : `${hr}:00 AM`; })()}</span></div>
-                  <div className="pb-w"><div className="pb" style={{width:`${(submittedCount/familyMembers.length)*100}%`}}/></div>
-                  <div className="div"/>
-                  {familyMembers.map(m=>{
-                    const ms=(suggestions[m.id]||[]).filter(Boolean);
-                    return (
-                      <div key={m.id} className="mmbr">
-                        <div className="mav">{m.avatar}</div>
-                        <div className="min-info">
-                          <div className="mn">{m.name}{m.id===user.id&&<span style={{fontSize:10,color:"#8A7F74",marginLeft:5}}>(you)</span>}</div>
-                          <div className="mr">{m.role==="admin"?"Admin":"Member"}</div>
-                          {ms.length>0?<div className="ms">{ms.join(" · ")}</div>:<div style={{fontSize:11,color:"#C0B5AB",marginTop:1}}>No picks yet</div>}
-                        </div>
-                        {ms.length>0&&<span style={{fontSize:16}}>✅</span>}
+              <>
+                {/* Header card */}
+                <div className="card">
+                  <div className="ch">
+                    <span className="ct">👨‍👩‍👧‍👦 {user.familyName}</span>
+                    <span style={{fontSize:12,color:"#8A7F74"}}>{familyRoster.length}/{MAX_MEMBERS} members</span>
+                  </div>
+                  <div className="cb">
+                    <div style={{fontSize:12,color:"#8A7F74",marginBottom:7}}>
+                      {Object.values(suggestions).filter(m=>m.some(s=>s.trim())).length} of {familyRoster.length} have submitted picks · Deadline: <span style={{color:"#E07A5F",fontWeight:600}}>{votingDeadline.day} {(()=>{const hr=Number(votingDeadline.time.split(":")[0]);return hr===12?"12:00 PM":hr===0?"12:00 AM":hr>12?`${hr-12}:00 PM`:`${hr}:00 AM`;})()}</span>
+                    </div>
+                    <div className="pb-w"><div className="pb" style={{width:`${(Object.values(suggestions).filter(m=>m.some(s=>s.trim())).length/Math.max(familyRoster.length,1))*100}%`}}/></div>
+                    {/* Capacity bar */}
+                    <div style={{display:"flex",alignItems:"center",gap:6,marginTop:10}}>
+                      <div style={{flex:1,display:"flex",gap:3}}>
+                        {Array.from({length:MAX_MEMBERS}).map((_,i)=>(
+                          <div key={i} style={{flex:1,height:5,borderRadius:3,
+                            background:i<familyRoster.length?"#E07A5F":i<totalSlots?"#F4D06F":"#EEE8E0"}}/>
+                        ))}
                       </div>
-                    );
-                  })}
+                      <span style={{fontSize:10,color:"#8A7F74",whiteSpace:"nowrap"}}>{slotsLeft} slot{slotsLeft!==1?"s":""} left</span>
+                    </div>
+                  </div>
                 </div>
-              </div>
+
+                {/* Active members */}
+                <div className="card">
+                  <div className="ch">
+                    <span className="ct">✅ Active Members</span>
+                    <span className="badge">{familyRoster.length}</span>
+                  </div>
+                  <div className="cb">
+                    {familyRoster.map(m=>{
+                      const ms=(suggestions[m.id]||[]).filter(Boolean);
+                      const isMe = m.id===user.id;
+                      const isThisAdmin = m.role==="admin";
+                      return (
+                        <div key={m.id} className="mmbr" style={{alignItems:"flex-start"}}>
+                          <div className="mav" style={{marginTop:2}}>{m.avatar}</div>
+                          <div className="min-info">
+                            <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:2}}>
+                              <div className="mn">{m.name}{isMe&&<span style={{fontSize:10,color:"#8A7F74",marginLeft:4}}>(you)</span>}</div>
+                              <div className="status-dot active"/>
+                            </div>
+                            <div style={{fontSize:11,color:"#8A7F74",marginBottom:2}}>{m.email}</div>
+                            {isAdmin&&!isMe?(
+                              <select className="role-sel" value={m.role} onChange={e=>changeRole(m.id,e.target.value)}>
+                                <option value="member">Member</option>
+                                <option value="admin">Admin</option>
+                              </select>
+                            ):(
+                              <div className="mr">{isThisAdmin?"Admin":"Member"}</div>
+                            )}
+                            {ms.length>0?<div className="ms" style={{marginTop:3}}>{ms.join(" · ")}</div>:<div style={{fontSize:11,color:"#C0B5AB",marginTop:2}}>No picks yet</div>}
+                          </div>
+                          <div style={{display:"flex",flexDirection:"column",gap:4,flexShrink:0}}>
+                            {ms.length>0&&<span style={{fontSize:16}}>✅</span>}
+                            {isAdmin&&!isMe&&(
+                              <button className="btn bdanger bsm" style={{padding:"4px 8px",fontSize:11}}
+                                onClick={()=>setRemovingMember(m)}>Remove</button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Pending invites */}
+                {pendingInvites.length>0&&(
+                  <div className="card">
+                    <div className="ch">
+                      <span className="ct">⏳ Pending Invites</span>
+                      <span className="badge" style={{background:"#F4A827"}}>{pendingInvites.length}</span>
+                    </div>
+                    <div className="cb">
+                      {pendingInvites.map(inv=>(
+                        <div key={inv.id} style={{background:"#FFF8EC",border:"1.5px solid #F4D06F",borderRadius:12,padding:"11px 13px",marginBottom:8}}>
+                          {/* Top row */}
+                          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+                            <span style={{fontSize:18}}>📧</span>
+                            <div style={{flex:1,minWidth:0}}>
+                              <div style={{fontSize:13,fontWeight:700}}>{inv.name}</div>
+                              <div style={{fontSize:11,color:"#8A7F74"}}>{inv.email} · {inv.role} · Sent {inv.sentAt}</div>
+                            </div>
+                            <button className="btn bdanger bsm" style={{fontSize:11,padding:"4px 8px",flexShrink:0}}
+                              onClick={()=>cancelInvite(inv.id)}>Cancel</button>
+                          </div>
+                          {/* Invite link row */}
+                          {inv.link&&(
+                            <div style={{background:"#fff",border:"1.5px solid #E2D9CE",borderRadius:8,padding:"7px 10px",marginBottom:7}}>
+                              <div style={{fontSize:10,fontWeight:700,color:"#8A7F74",letterSpacing:.5,textTransform:"uppercase",marginBottom:3}}>Invite Link</div>
+                              <div style={{fontSize:11,color:"#555",wordBreak:"break-all",fontFamily:"monospace",marginBottom:5}}>{inv.link}</div>
+                              <div style={{display:"flex",gap:5"}}>
+                                <button className="btn bsm" style={{background:"#EEE8E0",fontSize:11,padding:"4px 9px"}}
+                                  onClick={()=>copyInviteLink(inv.link)}>📋 Copy Link</button>
+                                <button className="btn bsm" style={{background:"#E8F0FE",color:"#2255CC",fontSize:11,padding:"4px 9px"}}
+                                  onClick={()=>{
+                                    const msg = `Hi ${inv.name}! You've been invited to join ${inv.family} on DinnerVote. Click this link to join: ${inv.link}`;
+                                    if(navigator.share) navigator.share({title:"Join our family on DinnerVote",text:msg});
+                                    else { navigator.clipboard.writeText(msg).catch(()=>{}); toast("Message copied — paste it in a text or email!"); }
+                                  }}>✉️ Share</button>
+                              </div>
+                            </div>
+                          )}
+                          {/* Simulate accept */}
+                          <div style={{display:"flex",alignItems:"center",gap:6}}>
+                            <div style={{flex:1,fontSize:10,color:"#B0A898"}}>
+                              Link expires in 7 days · {inv.token&&`Token: ${inv.token}`}
+                            </div>
+                            <button className="btn bsm" style={{background:"#EAF7EE",color:"#2C7A4B",fontSize:11,padding:"4px 8px"}}
+                              onClick={()=>acceptInvite(inv)}>✓ Simulate Join*</button>
+                          </div>
+                        </div>
+                      ))}
+                      <p style={{fontSize:10,color:"#B0A898",marginTop:2}}>* "Simulate Join" mimics clicking the email link. In production, this is handled automatically when the invitee creates their account.</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Invite new member */}
+                {isAdmin&&(
+                  <div className="card">
+                    <div className="ch">
+                      <span className="ct">➕ Invite a Member</span>
+                      {slotsLeft===0&&<span style={{fontSize:11,color:"#E07A5F",fontWeight:600}}>Family full (8/8)</span>}
+                    </div>
+                    <div className="cb">
+                      {slotsLeft===0?(
+                        <div className="empty" style={{padding:"12px 0"}}>
+                          <div className="ei">👨‍👩‍👧‍👦</div>
+                          <p>Your family is at the 8-member limit. Remove a member to invite someone new.</p>
+                        </div>
+                      ):(
+                        <>
+                          <p style={{fontSize:12,color:"#8A7F74",marginBottom:12}}>
+                            They'll receive an email with a link to join your family. You have <strong>{slotsLeft} slot{slotsLeft!==1?"s":""}</strong> remaining.
+                          </p>
+                          <div className="field">
+                            <div className="lbl">Their name</div>
+                            <input className="inp inpsm" placeholder="e.g. Grandma Sue" value={inviteName} onChange={e=>setInviteName(e.target.value)}/>
+                          </div>
+                          <div className="field">
+                            <div className="lbl">Email address</div>
+                            <input className="inp inpsm" type="email" placeholder="e.g. grandma@email.com" value={inviteEmail}
+                              onChange={e=>setInviteEmail(e.target.value)}
+                              onKeyDown={e=>e.key==="Enter"&&sendInvite()}/>
+                          </div>
+                          <div className="field">
+                            <div className="lbl">Role</div>
+                            <select className="sel" value={inviteRole} onChange={e=>setInviteRole(e.target.value)}>
+                              <option value="member">Member — can submit picks and view menu</option>
+                              <option value="admin">Admin — can also manage family and generate menu</option>
+                            </select>
+                          </div>
+                          <button className="btn bp bfull" disabled={!inviteEmail.trim()||!inviteName.trim()} onClick={sendInvite}>
+                            Generate Invite Link 🔗
+                          </button>
+                          <p style={{fontSize:10,color:"#B0A898",textAlign:"center",marginTop:6}}>
+                            Creates a unique link for this person tied to your family. Copy it and send via text or email.
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* General family invite link */}
+                {isAdmin&&slotsLeft>0&&(
+                  <div className="card">
+                    <div className="ch"><span className="ct">🔗 Family Invite Link</span></div>
+                    <div className="cb">
+                      <p style={{fontSize:12,color:"#8A7F74",marginBottom:12}}>
+                        Share this general link to let anyone join your family — no email needed. Good for sharing in a group chat.
+                      </p>
+                      <div style={{background:"#F7F3EE",border:"1.5px solid #E2D9CE",borderRadius:10,padding:"10px 12px",marginBottom:10}}>
+                        <div style={{fontSize:11,fontFamily:"monospace",color:"#555",wordBreak:"break-all",marginBottom:8}}>
+                          {buildInviteLink(generateToken(user.familyName,"general")+"OPEN")}
+                        </div>
+                        <div style={{display:"flex",gap:6}}>
+                          <button className="btn bs bsm" style={{fontSize:12}}
+                            onClick={()=>{
+                              const link=buildInviteLink(user.family.toUpperCase()+"-OPEN-INVITE");
+                              copyInviteLink(link);
+                            }}>📋 Copy Link</button>
+                          <button className="btn bsm" style={{background:"#E8F0FE",color:"#2255CC",fontSize:12}}
+                            onClick={()=>{
+                              const link=buildInviteLink(user.family.toUpperCase()+"-OPEN-INVITE");
+                              const msg=`Join ${user.familyName} on DinnerVote! Use this link: ${link}`;
+                              if(navigator.share) navigator.share({title:`Join ${user.familyName} on DinnerVote`,text:msg,url:link});
+                              else { navigator.clipboard.writeText(msg).catch(()=>{}); toast("Message copied!"); }
+                            }}>✉️ Share via Text/Email</button>
+                        </div>
+                      </div>
+                      <p style={{fontSize:10,color:"#B0A898"}}>Anyone with this link can join your family until the 8-member limit is reached.</p>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
 
             {/* ADMIN TAB */}
@@ -1053,6 +1335,27 @@ export default function DinnerFam() {
                   </div>
                 ))}
                 {isAdmin&&<button className="btn bs bfull" style={{marginTop:12}} onClick={()=>{setViewFamilyRecipe(null);setEditingFamilyRecipe({...viewFamilyRecipe});setIsNewFamilyRecipe(false);}}>Edit Recipe</button>}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ════ MODAL: Remove member confirmation */}
+        {removingMember&&(
+          <div className="confirm-overlay" onClick={()=>setRemovingMember(null)}>
+            <div className="confirm-box" onClick={e=>e.stopPropagation()}>
+              <div style={{fontSize:24,marginBottom:10,textAlign:"center"}}>{removingMember.avatar}</div>
+              <div style={{fontFamily:"Fraunces, serif",fontSize:18,fontWeight:700,textAlign:"center",marginBottom:8}}>
+                Remove {removingMember.name}?
+              </div>
+              <p style={{fontSize:13,color:"#8A7F74",textAlign:"center",marginBottom:18,lineHeight:1.5}}>
+                They'll lose access to your family's menu, recipes, and shopping list. Their submitted picks will be removed.
+              </p>
+              <div style={{display:"flex",gap:8}}>
+                <button className="btn bs" style={{flex:1}} onClick={()=>setRemovingMember(null)}>Cancel</button>
+                <button className="btn bp" style={{flex:1,background:"#C96B50"}} onClick={()=>removeMember(removingMember.id)}>
+                  Yes, Remove
+                </button>
               </div>
             </div>
           </div>
