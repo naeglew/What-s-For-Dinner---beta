@@ -8,6 +8,18 @@ const CUISINES = ["Italian","Mexican","Asian","American","Mediterranean","Indian
 const DIETS = ["Vegetarian","Vegan","Gluten-Free","Dairy-Free","Keto","Paleo","Nut-Free"];
 const TIMES = ["Under 20 min","20–30 min","30–45 min","45–60 min","1+ hour"];
 
+// Instacart affiliate link — replace YOUR_AFFILIATE_ID with your Impact.com affiliate ID
+const INSTACART_AFFILIATE_ID = "YOUR_AFFILIATE_ID";
+const INSTACART_BASE = "https://www.instacart.com/store";
+function buildInstacartUrl(items) {
+  // Once you have the Instacart Developer API, this will pre-populate the cart.
+  // For now, links to Instacart search with your affiliate tag.
+  const tag = INSTACART_AFFILIATE_ID !== "YOUR_AFFILIATE_ID"
+    ? `?utm_source=dinnervote&affiliate_id=${INSTACART_AFFILIATE_ID}`
+    : "";
+  return `${INSTACART_BASE}${tag}`;
+}
+
 // ─── SEED USERS / FAMILIES ────────────────────────────────────────────────────
 const ALL_USERS = [
   { id:"u1", name:"Sarah M.", family:"f1", role:"admin", avatar:"👩", familyName:"The Mitchells" },
@@ -394,6 +406,7 @@ export default function DinnerFam() {
   const [extraItems, setExtraItems] = useState([]);
   const [newExtra, setNewExtra] = useState("");
   const [lockedCfg, setLockedCfg] = useState(DAYS.map((d,i)=>({day:d,locked:i===4,label:i===4?"Eat Out Night 🍽️":""})));
+  const [votingDeadline, setVotingDeadline] = useState({ day: "Sunday", time: "20:00" });
   const [editingMealIdx, setEditingMealIdx] = useState(null);
   const [editMealVal, setEditMealVal] = useState("");
   const [viewFamilyRecipe, setViewFamilyRecipe] = useState(null);
@@ -659,6 +672,26 @@ export default function DinnerFam() {
 
             {/* SHOP TAB */}
             {familyTab==="shop"&&(
+              <>
+              {/* Instacart Banner */}
+              {totalItems>0&&(
+                <div style={{background:"#1A8917",borderRadius:14,padding:"14px 16px",marginBottom:12,display:"flex",alignItems:"center",gap:12}}>
+                  <div style={{flex:1}}>
+                    <div style={{color:"#fff",fontWeight:700,fontSize:14,marginBottom:2}}>Order groceries on Instacart</div>
+                    <div style={{color:"rgba(255,255,255,.8)",fontSize:12}}>Get everything on your list delivered today from your favorite store.</div>
+                  </div>
+                  <button
+                    className="btn"
+                    style={{background:"#fff",color:"#1A8917",fontWeight:700,fontSize:13,padding:"9px 14px",borderRadius:10,flexShrink:0,whiteSpace:"nowrap"}}
+                    onClick={()=>{
+                      const items=Object.values(shoppingList).flat().filter(i=>!checkedItems[`${i.category}-${i.item}`]);
+                      window.open(buildInstacartUrl(items),"_blank");
+                      toast("Opening Instacart...");
+                    }}>
+                    Shop on Instacart 🛒
+                  </button>
+                </div>
+              )}
               <div className="card">
                 <div className="ch"><span className="ct">🛒 Shopping List</span>
                   <span style={{fontSize:11,color:"#8A7F74"}}>{checkedCount}/{totalItems} done</span>
@@ -695,13 +728,39 @@ export default function DinnerFam() {
                     <button className="btn bp bsm" onClick={()=>{if(newExtra.trim()){setExtraItems(p=>[...p,{id:Date.now(),name:newExtra.trim()}]);setNewExtra("");}}}>Add</button>
                   </div>
                   {checkedCount>0&&<button className="btn bs bfull bsm" style={{marginTop:8}} onClick={()=>setCheckedItems({})}>Clear checked</button>}
+                  {/* Instacart unchecked items shortcut */}
+                  {totalItems>0&&(
+                    <div style={{marginTop:10,paddingTop:10,borderTop:"1px solid #EEE8E0"}}>
+                      <button className="btn bfull" style={{background:"#1A8917",color:"#fff",fontWeight:700,fontSize:13,justifyContent:"center"}}
+                        onClick={()=>{
+                          const items=Object.values(shoppingList).flat();
+                          window.open(buildInstacartUrl(items),"_blank");
+                          toast("Opening Instacart...");
+                        }}>
+                        Order all ingredients on Instacart 🛒
+                      </button>
+                      <p style={{fontSize:10,color:"#B0A898",textAlign:"center",marginTop:5}}>
+                        Powered by Instacart · Delivery from your local store
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
+              </>
             )}
 
             {/* PICKS TAB */}
             {familyTab==="picks"&&(
               <>
+                <div className="card" style={{background:"#FFF8EC",border:"1.5px solid #F4D06F",borderRadius:14,padding:"11px 14px",marginBottom:12,display:"flex",alignItems:"center",gap:10}}>
+                  <span style={{fontSize:20}}>⏰</span>
+                  <div>
+                    <div style={{fontSize:13,fontWeight:700,color:"#B5860A"}}>Picks due by {votingDeadline.day}</div>
+                    <div style={{fontSize:11,color:"#8A7F74",marginTop:1}}>
+                      Submit before {(() => { const hr = Number(votingDeadline.time.split(":")[0]); return hr === 12 ? "12:00 PM" : hr === 0 ? "12:00 AM" : hr > 12 ? `${hr-12}:00 PM` : `${hr}:00 AM`; })()} so the admin can generate next week's menu.
+                    </div>
+                  </div>
+                </div>
                 <div className="card">
                   <div className="ch"><span className="ct">{user.avatar} {user.name}'s Picks</span>
                     {(suggestions[user.id]||[]).some(m=>m.trim())&&<span style={{fontSize:11,color:"#81B29A",fontWeight:700}}>✓ Submitted</span>}
@@ -739,7 +798,7 @@ export default function DinnerFam() {
               <div className="card">
                 <div className="ch"><span className="ct">👨‍👩‍👧‍👦 {user.familyName}</span><span className="badge">{familyMembers.length}</span></div>
                 <div className="cb">
-                  <div style={{fontSize:12,color:"#8A7F74",marginBottom:7}}>{submittedCount} of {familyMembers.length} have submitted picks.</div>
+                  <div style={{fontSize:12,color:"#8A7F74",marginBottom:7}}>{submittedCount} of {familyMembers.length} have submitted picks · Deadline: <span style={{color:"#E07A5F",fontWeight:600}}>{votingDeadline.day} {(() => { const hr = Number(votingDeadline.time.split(":")[0]); return hr === 12 ? "12:00 PM" : hr === 0 ? "12:00 AM" : hr > 12 ? `${hr-12}:00 PM` : `${hr}:00 AM`; })()}</span></div>
                   <div className="pb-w"><div className="pb" style={{width:`${(submittedCount/familyMembers.length)*100}%`}}/></div>
                   <div className="div"/>
                   {familyMembers.map(m=>{
@@ -775,6 +834,45 @@ export default function DinnerFam() {
                           onChange={e=>setLockedCfg(p=>p.map((c,j)=>j===i?{...c,label:e.target.value}:c))}/>
                       </div>
                     ))}
+                  </div>
+                </div>
+                <div className="card">
+                  <div className="ch"><span className="ct">⏰ Voting Deadline</span></div>
+                  <div className="cb">
+                    <p style={{fontSize:12,color:"#8A7F74",marginBottom:12}}>
+                      Set the day and time when family picks are due. Members will see a countdown to this deadline.
+                    </p>
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+                      <div>
+                        <div className="lbl">Deadline day</div>
+                        <select className="sel" value={votingDeadline.day}
+                          onChange={e=>setVotingDeadline(p=>({...p,day:e.target.value}))}>
+                          {DAYS.map(d=><option key={d}>{d}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <div className="lbl">Deadline time</div>
+                        <select className="sel" value={votingDeadline.time}
+                          onChange={e=>setVotingDeadline(p=>({...p,time:e.target.value}))}>
+                          {["06:00","07:00","08:00","09:00","10:00","11:00","12:00","13:00","14:00","15:00","16:00","17:00","18:00","19:00","20:00","21:00","22:00","23:00"].map(t=>{
+                            const [h] = t.split(":");
+                            const hr = Number(h);
+                            const label = hr === 12 ? "12:00 PM" : hr === 0 ? "12:00 AM" : hr > 12 ? `${hr-12}:00 PM` : `${hr}:00 AM`;
+                            return <option key={t} value={t}>{label}</option>;
+                          })}
+                        </select>
+                      </div>
+                    </div>
+                    <div style={{background:"#F7F3EE",borderRadius:10,padding:"10px 13px",fontSize:12,color:"#555"}}>
+                      <span style={{fontWeight:700}}>Current setting: </span>
+                      Family picks are due by <span style={{color:"#E07A5F",fontWeight:700}}>{votingDeadline.day} at {
+                        (() => {
+                          const hr = Number(votingDeadline.time.split(":")[0]);
+                          return hr === 12 ? "12:00 PM" : hr === 0 ? "12:00 AM" : hr > 12 ? `${hr-12}:00 PM` : `${hr}:00 AM`;
+                        })()
+                      }</span>. The menu will be generated after that.
+                    </div>
+                    <button className="btn bp bfull" style={{marginTop:10}} onClick={()=>toast("Deadline saved!")}>Save Deadline</button>
                   </div>
                 </div>
                 <div className="card">
