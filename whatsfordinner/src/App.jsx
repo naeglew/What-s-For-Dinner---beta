@@ -993,7 +993,7 @@ export default function DinnerFam() {
                             <div style={{background:"#fff",border:"1.5px solid #E2D9CE",borderRadius:8,padding:"7px 10px",marginBottom:7}}>
                               <div style={{fontSize:10,fontWeight:700,color:"#8A7F74",letterSpacing:.5,textTransform:"uppercase",marginBottom:3}}>Invite Link</div>
                               <div style={{fontSize:11,color:"#555",wordBreak:"break-all",fontFamily:"monospace",marginBottom:5}}>{inv.link}</div>
-                              <div style={{display:"flex",gap:5"}}>
+                              <div style={{display:"flex",gap:5}}>
                                 <button className="btn bsm" style={{background:"#EEE8E0",fontSize:11,padding:"4px 9px"}}
                                   onClick={()=>copyInviteLink(inv.link)}>📋 Copy Link</button>
                                 <button className="btn bsm" style={{background:"#E8F0FE",color:"#2255CC",fontSize:11,padding:"4px 9px"}}
