@@ -381,6 +381,31 @@ body{font-family:'DM Sans',sans-serif;background:#F7F3EE;color:#1E1E1E;}
 .family-badge{font-size:10px;color:#E07A5F;background:#FDF0EC;border-radius:5px;padding:2px 6px;font-weight:700;}
 .textarea{border:1.5px solid #E2D9CE;border-radius:10px;padding:8px 11px;font-family:'DM Sans',sans-serif;font-size:13px;background:#FAFAF8;outline:none;width:100%;resize:vertical;min-height:70px;transition:border-color .15s;}
 .textarea:focus{border-color:#E07A5F;background:#fff;}
+.ob-bg{position:fixed;inset:0;background:#1E1E1E;z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;max-width:480px;margin:0 auto;}
+.ob-card{background:#fff;border-radius:24px 24px 0 0;width:100%;padding:32px 28px 40px;position:relative;}
+.ob-logo{font-family:"Fraunces",serif;font-size:28px;font-weight:900;color:#fff;text-align:center;margin-bottom:6px;}
+.ob-logo em{color:#E07A5F;font-style:italic;}
+.ob-tagline{font-size:13px;color:rgba(255,255,255,.6);text-align:center;margin-bottom:32px;}
+.ob-hero{font-size:56px;text-align:center;margin-bottom:14px;}
+.ob-title{font-family:"Fraunces",serif;font-size:24px;font-weight:700;color:#1E1E1E;text-align:center;margin-bottom:10px;line-height:1.25;}
+.ob-body{font-size:14px;color:#666;text-align:center;line-height:1.6;margin-bottom:28px;}
+.ob-dots{display:flex;justify-content:center;gap:7px;margin-bottom:24px;}
+.ob-dot{width:8px;height:8px;border-radius:50%;background:#EEE8E0;transition:all .2s;}
+.ob-dot.on{background:#E07A5F;width:22px;border-radius:4px;}
+.ob-btn{width:100%;background:#E07A5F;color:#fff;border:none;border-radius:14px;padding:16px;font-family:"DM Sans",sans-serif;font-size:16px;font-weight:700;cursor:pointer;margin-bottom:12px;transition:background .15s;}
+.ob-btn:hover{background:#C9603E;}
+.ob-skip{background:none;border:none;color:#B0A898;font-family:"DM Sans",sans-serif;font-size:13px;cursor:pointer;width:100%;padding:4px;}
+.ob-skip:hover{color:#888;}
+.ob-demo-row{display:flex;align-items:center;gap:10px;background:#F7F3EE;border-radius:12px;padding:12px 14px;margin-bottom:8px;cursor:pointer;transition:background .15s;}
+.ob-demo-row:hover{background:#EEE8E0;}
+.ob-demo-av{font-size:24px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;}
+.ob-demo-info{flex:1;}
+.ob-demo-name{font-size:14px;font-weight:700;color:#1E1E1E;}
+.ob-demo-role{font-size:11px;color:#8A7F74;}
+.ob-demo-fam{font-size:10px;color:#E07A5F;font-weight:600;}
+.beta-banner{background:#3D405B;padding:8px 16px;display:flex;align-items:center;gap:8px;}
+.beta-banner p{font-size:11px;color:rgba(255,255,255,.8);flex:1;}
+.beta-banner a{font-size:11px;color:#F2CC8F;font-weight:700;text-decoration:none;white-space:nowrap;}
 .invite-box{background:#F7F3EE;border:1.5px dashed #D4C5BB;border-radius:12px;padding:14px 15px;margin-bottom:14px;}
 .member-full{background:#FDF0EC;border:1.5px solid #F0C5B5;border-radius:12px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;}
 .status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
@@ -397,6 +422,9 @@ body{font-family:'DM Sans',sans-serif;background:#F7F3EE;color:#1E1E1E;}
 
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 export default function DinnerFam() {
+  useEffect(()=>{document.title="What's for Dinner? — Beta";},[]);
+  const [showOnboarding, setShowOnboarding] = useState(true);
+  const [onboardStep, setOnboardStep] = useState(0);
   const [user, setUser] = useState(ALL_USERS[0]);
   const [section, setSection] = useState("family"); // "family" | "community"
   const [familyTab, setFamilyTab] = useState("menu");
@@ -640,9 +668,91 @@ export default function DinnerFam() {
   const totalSlots = familyRoster.length + pendingInvites.length;
   const slotsLeft = MAX_MEMBERS - totalSlots;
 
+  const OB_STEPS = [
+    {
+      hero:"🍽️",
+      title:"Never ask "What's for dinner?" again.",
+      body:"DinnerVote lets every family member vote on the week's meals. The app builds the menu automatically — prioritizing the most popular picks."
+    },
+    {
+      hero:"🗳️",
+      title:"Everyone gets a say.",
+      body:"Each family member submits 3–5 meal ideas every week. The more votes a meal gets, the higher it lands on the menu. No more one person deciding for everyone."
+    },
+    {
+      hero:"📋",
+      title:"Recipes + shopping list built in.",
+      body:"Link recipes to your meals and your weekly grocery list writes itself — sorted by store category and ready to send to Instacart with one tap."
+    },
+    {
+      hero:"🌍",
+      title:"Discover recipes from real families.",
+      body:"Browse the community recipe hub — thousands of real family recipes, rated and reviewed by parents who actually cooked them. Save any recipe straight to your family library."
+    },
+  ];
+
+  if (showOnboarding) return (
+    <>
+      <style>{CSS}</style>
+      <div className="ob-bg">
+        {/* Dark top area */}
+        <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",padding:"40px 20px 0",width:"100%"}}>
+          <div className="ob-logo">What's for <em>Dinner?</em></div>
+          <div className="ob-tagline">Family dinner planning, made democratic.</div>
+          {/* Step indicators up top */}
+          <div className="ob-dots">
+            {OB_STEPS.map((_,i)=><div key={i} className={`ob-dot${onboardStep===i?" on":""}`}/>)}
+          </div>
+        </div>
+        {/* White card */}
+        <div className="ob-card">
+          <div className="ob-hero">{OB_STEPS[onboardStep].hero}</div>
+          <div className="ob-title">{OB_STEPS[onboardStep].title}</div>
+          <div className="ob-body">{OB_STEPS[onboardStep].body}</div>
+          {onboardStep < OB_STEPS.length - 1 ? (
+            <>
+              <button className="ob-btn" onClick={()=>setOnboardStep(s=>s+1)}>Next →</button>
+              <button className="ob-skip" onClick={()=>setShowOnboarding(false)}>Skip intro</button>
+            </>
+          ) : (
+            <>
+              {/* Final step — pick a demo user */}
+              <div style={{marginBottom:16}}>
+                <div style={{fontSize:11,fontWeight:700,letterSpacing:.6,textTransform:"uppercase",color:"#8A7F74",marginBottom:8}}>Choose a demo account to explore</div>
+                {ALL_USERS.slice(0,4).map(u=>(
+                  <div key={u.id} className="ob-demo-row" onClick={()=>{setUser(u);setShowOnboarding(false);}}>
+                    <div className="ob-demo-av">{u.avatar}</div>
+                    <div className="ob-demo-info">
+                      <div className="ob-demo-name">{u.name}</div>
+                      <div style={{display:"flex",gap:6,alignItems:"center",marginTop:2}}>
+                        <div className="ob-demo-role">{u.role==="admin"?"Family Admin — full controls":"Family Member"}</div>
+                        <div className="ob-demo-fam">{u.familyName}</div>
+                      </div>
+                    </div>
+                    <span style={{fontSize:18,color:"#CCC"}}>›</span>
+                  </div>
+                ))}
+              </div>
+              <div style={{background:"#FDF0EC",borderRadius:10,padding:"10px 13px",marginBottom:4}}>
+                <div style={{fontSize:11,fontWeight:700,color:"#E07A5F",marginBottom:3}}>🧪 Beta Prototype</div>
+                <div style={{fontSize:11,color:"#888",lineHeight:1.5}}>Data resets on page refresh — this is a UI preview. Your feedback helps us build the real thing!</div>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </>
+  );
+
   return (
     <>
       <style>{CSS}</style>
+      {/* Beta banner */}
+      <div className="beta-banner">
+        <span style={{fontSize:14}}>🧪</span>
+        <p>Beta preview — data resets on refresh. <strong>Have feedback?</strong></p>
+        <a href="https://forms.gle/YOUR_FORM_ID" target="_blank" rel="noreferrer">Give Feedback →</a>
+      </div>
       {showToast&&(
         <div style={{position:"fixed",bottom:80,left:"50%",transform:"translateX(-50%)",background:"#1E1E1E",color:"#fff",padding:"10px 18px",borderRadius:10,fontSize:13,fontWeight:600,zIndex:500,whiteSpace:"nowrap",boxShadow:"0 4px 20px rgba(0,0,0,.25)"}}>
           {showToast}
