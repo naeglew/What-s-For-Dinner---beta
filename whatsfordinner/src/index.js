@@ -1,10 +1,38 @@
-import React from 'react';
-import ReactDOM from 'react-dom/client';
-import App from './App';
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <meta name="theme-color" content="#1E1E1E" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="What's for Dinner?" />
+    <meta name="description" content="Family dinner planning, recipes, and a community recipe hub." />
 
-const root = ReactDOM.createRoot(document.getElementById('root'));
-root.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+
+    <!-- Apple touch icon (shows on home screen when added) -->
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/icon-192.png" />
+
+    <title>What's for Dinner? — Beta</title>
+
+    <style>
+      /* Prevent flash of unstyled content & ensure full height */
+      html, body, #root {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        background: #1E1E1E;
+      }
+      /* Hide scrollbar on body — app handles its own scroll */
+      body {
+        overflow: hidden;
+      }
+    </style>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+  </body>
+</html>
