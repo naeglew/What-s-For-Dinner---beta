@@ -671,7 +671,7 @@ export default function DinnerFam() {
   const OB_STEPS = [
     {
       hero:"🍽️",
-      title:"Never ask "What's for dinner?" again.",
+      title:"Never ask \u201cWhat\u2019s for dinner?\u201d again.",
       body:"DinnerVote lets every family member vote on the week's meals. The app builds the menu automatically — prioritizing the most popular picks."
     },
     {
